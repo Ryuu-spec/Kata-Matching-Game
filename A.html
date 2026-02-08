@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiragana line A - Matching Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #fdf8f5;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-container {
+            display: block;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 50px;
+            background-color: white;
+            padding: 20px 50px;
+            border-radius: 100px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .title span {
+            color: #ff6b6b;
+        }
+
+        .timer {
+            background-color: #ff6b6b;
+            color: white;
+            padding: 10px 28px;
+            border-radius: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            min-width: 160px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 30px;
+            padding: 0 20px;
+        }
+
+        .card {
+            aspect-ratio: 0.8;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            user-select: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.3s;
+        }
+
+        .card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .card.romaji {
+            background-color: #d6ebf5;
+            color: #000;
+            font-family: Arial, sans-serif;
+            font-weight: normal;
+            font-size: 160px;
+            border: 6px solid white;
+        }
+
+        .card.hiragana {
+            background-color: white;
+            border: 6px solid #84c1e4;
+            font-family: 'Klee One', cursive;
+            font-weight: 600;
+            font-size: 160px;
+            -webkit-text-stroke: 1.5px currentColor;
+        }
+
+        .card.selected {
+            border: 6px solid #ff6b6b;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.6), 0 8px 20px rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+        }
+
+        .card.matched {
+            opacity: 0.3;
+            cursor: default;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+
+        .card.wrong {
+            animation: shake 0.2s;
+            border-color: #f44336;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .card:hover:not(.matched):not(.selected) {
+            transform: scale(1.08) translateY(-8px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .card:active:not(.matched) {
+            transform: scale(1.02);
+        }
+
+        .confetti {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            top: -10px;
+            z-index: 9999;
+            pointer-events: none;
+            border-radius: 2px;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .restart-button {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+            transition: all 0.3s ease;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            margin-left: 20px;
+        }
+
+        .restart-button.show {
+            display: flex;
+        }
+
+        .restart-button:hover {
+            background-color: #ff5252;
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4);
+        }
+
+        .restart-button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="header">
+            <h1 class="title">Katakana line <span>A</span></h1>
+            <div style="display: flex; align-items: center;">
+                <div class="timer" id="timer">00:00</div>
+                <button class="restart-button" id="restartBtn" onclick="restartGame()">↻</button>
+            </div>
+        </div>
+
+        <div class="game-board" id="gameBoard"></div>
+    </div>
+
+    <script>
+        const cardsTemplate = [
+            { type: 'romaji', value: 'a', pair: 'ア' },
+            { type: 'romaji', value: 'i', pair: 'イ' },
+            { type: 'hiragana', value: 'ウ', pair: 'u', color: '#2ecc71' },
+            { type: 'hiragana', value: 'イ', pair: 'i', color: '#3498db' },
+            { type: 'hiragana', value: 'ア', pair: 'a', color: '#e74c3c' },
+            { type: 'romaji', value: 'o', pair: 'オ' },
+            { type: 'hiragana', value: 'エ', pair: 'e', color: '#9b59b6' },
+            { type: 'hiragana', value: 'オ', pair: 'o', color: '#f39c12' },
+            { type: 'romaji', value: 'u', pair: 'ウ' },
+            { type: 'romaji', value: 'e', pair: 'エ' }
+        ];
+
+        let selectedCards = [];
+        let matchedPairs = 0;
+        let startTime;
+        let timerInterval;
+        let gameStarted = false;
+        let isChecking = false;
+
+        // 사운드 생성 함수들
+        function playCorrectSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 523.25; // C5
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        function playIncorrectSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 200; // Lower tone
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.15);
+        }
+
+        function playCelebrationSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
+            
+            notes.forEach((freq, index) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = freq;
+                oscillator.type = 'sine';
+                
+                const startTime = audioContext.currentTime + (index * 0.15);
+                gainNode.gain.setValueAtTime(0.3, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+                
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.4);
+            });
+        }
+
+        // 배열 섞기 함수
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        function initGame() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            
+            // 카드를 랜덤하게 섞기
+            const shuffledCards = shuffleArray(cardsTemplate);
+            
+            shuffledCards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${card.type}`;
+                cardElement.textContent = card.value;
+                cardElement.dataset.value = card.value;
+                cardElement.dataset.pair = card.pair;
+                cardElement.dataset.index = index;
+                
+                if (card.color && card.type === 'hiragana') {
+                    cardElement.style.color = card.color;
+                }
+                
+                cardElement.addEventListener('click', handleCardClick);
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        function handleCardClick(e) {
+            if (!gameStarted) {
+                startTimer();
+                gameStarted = true;
+            }
+
+            const card = e.currentTarget;
+            
+            // 이미 매칭되었거나 선택된 카드, 또는 체크 중일 때는 무시
+            if (card.classList.contains('matched') || 
+                card.classList.contains('selected') || 
+                isChecking) {
+                return;
+            }
+
+            // 이미 2개가 선택되었으면 무시
+            if (selectedCards.length >= 2) {
+                return;
+            }
+
+            card.classList.add('selected');
+            selectedCards.push(card);
+
+            if (selectedCards.length === 2) {
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            isChecking = true;
+            const [card1, card2] = selectedCards;
+            const value1 = card1.dataset.value;
+            const value2 = card2.dataset.value;
+            const pair1 = card1.dataset.pair;
+            const pair2 = card2.dataset.pair;
+
+            if (value1 === pair2 && value2 === pair1) {
+                // 매칭 성공 - 즉시 처리
+                playCorrectSound();
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                card1.classList.remove('selected');
+                card2.classList.remove('selected');
+                matchedPairs++;
+                selectedCards = [];
+                isChecking = false;
+
+                if (matchedPairs === 5) {
+                    endGame();
+                }
+            } else {
+                // 매칭 실패 - 매우 짧은 지연 후 처리
+                playIncorrectSound();
+                card1.classList.add('wrong');
+                card2.classList.add('wrong');
+                
+                setTimeout(() => {
+                    card1.classList.remove('selected', 'wrong');
+                    card2.classList.remove('selected', 'wrong');
+                    selectedCards = [];
+                    isChecking = false;
+                }, 100); // 초고속 반응
+            }
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 10);
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+
+            document.getElementById('timer').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function createConfetti() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#a29bfe', '#fd79a8'];
+            const confettiCount = 100;
+            const shapes = ['●', '■', '★'];
+
+            for (let i = 0; i < confettiCount; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.color = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.fontSize = (Math.random() * 15 + 12) + 'px';
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = (Math.random() * 0.5) + 's';
+                confetti.style.animation = 'confetti-fall linear forwards';
+                
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    confetti.remove();
+                }, 6000);
+            }
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            playCelebrationSound();
+            createConfetti();
+            
+            // 리셋 버튼 표시
+            document.getElementById('restartBtn').classList.add('show');
+        }
+
+        function restartGame() {
+            // 리셋 버튼 숨기기
+            document.getElementById('restartBtn').classList.remove('show');
+            
+            // 게임 상태 초기화
+            selectedCards = [];
+            matchedPairs = 0;
+            gameStarted = false;
+            isChecking = false;
+            
+            // 타이머 초기화
+            clearInterval(timerInterval);
+            document.getElementById('timer').textContent = '00:00';
+            
+            // 게임 보드 재생성
+            initGame();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
